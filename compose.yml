@@ -1,0 +1,43 @@
+networks:
+  cassandra-network:
+
+services:
+  cassandra10:
+    image: cassandra:latest
+    container_name: cassandra10
+    networks:
+      - cassandra-network
+    ports:
+      - "9042:9042"
+    environment: &enviroment_variables
+      CASSANDRA_SEEDS: cassandra10
+      CASSANDRA_CLUSTER_NAME: LudwigCluster
+      CASSANDRA_DC: DC1
+      CASSANDRA_RACK: RACK1
+      CASSANDRA_ENDPOINT_SNITCH: GossipingPropertyFileSnitch
+      CASSANDRA_NUM_TOKENS: 128
+      JVM_OPTS: "-Xms512M -Xmx512M"
+
+  cassandra20:
+    image: cassandra:latest
+    container_name: cassandra20
+    networks:
+      - cassandra-network
+    ports:
+      - "9142:9042"
+    environment: *enviroment_variables
+    depends_on:
+      cassandra10:
+        condition: service_started
+
+  cassandra30:
+    image: cassandra:latest
+    container_name: cassandra30
+    networks:
+      - cassandra-network
+    ports:
+      - "9242:9042"
+    environment: *enviroment_variables
+    depends_on:
+      cassandra20:
+        condition: service_started
