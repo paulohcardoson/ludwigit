@@ -1,0 +1,29 @@
+server:
+  port: 8080
+
+app:
+  base-url: http://localhost:8080
+
+spring:
+  application:
+    name: "Ludwigit"
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    username: postgres
+    password: password
+    url: jdbc:postgresql://localhost:5432/ludwigit
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    generate-ddl: true
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+base62:
+  alphabet: "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+hashids:
+  min-length: 3
+  salt: "i5VrcsBN$padaFgYifoWZ%uh1qIEo5dm@FzJP@2M"
