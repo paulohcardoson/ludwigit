@@ -1,8 +1,8 @@
 server:
-  port: 8080
+  port:
 
 app:
-  base-url: http://localhost:8080
+  base-url:
 
 spring:
   application:
@@ -25,5 +25,5 @@ base62:
   alphabet: "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 hashids:
-  min-length: 3
-  salt: "i5VrcsBN$padaFgYifoWZ%uh1qIEo5dm@FzJP@2M"
+  min-length:
+  salt:
