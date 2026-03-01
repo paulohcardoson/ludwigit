@@ -1,0 +1,101 @@
+package com.ludwigit.app.services;
+
+import com.ludwigit.app.config.AppConfig;
+import com.ludwigit.app.exceptions.InvalidURLException;
+import com.ludwigit.app.exceptions.ShortedURLNotFoundException;
+import com.ludwigit.app.exceptions.URLAlreadyExistsException;
+import com.ludwigit.app.model.ShortedURL;
+import com.ludwigit.app.repositories.ShortedURLRepository;
+import jakarta.validation.constraints.NotNull;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.stereotype.Service;
+
+import java.net.URI;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+
+@Service
+public class ShortedURLService {
+
+	private final HashIdsService hashIdsService;
+	private final ShortedURLRepository shortedUrlRepository;
+	private final RedisTemplate<String, Object> redisTemplate;
+	private final URI baseUri;
+
+	public ShortedURLService(
+		ShortedURLRepository shortedUrlRepository,
+		HashIdsService hashIdsService,
+		AppConfig appConfig,
+		RedisTemplate<String, Object> redisTemplate
+	) {
+		this.hashIdsService = hashIdsService;
+		this.shortedUrlRepository = shortedUrlRepository;
+		this.baseUri = URI.create(appConfig.getBaseUrl());
+		this.redisTemplate = redisTemplate;
+	}
+
+	public String createShortedURL(String originalUrl) throws URLAlreadyExistsException, InvalidURLException {
+		boolean isFromTheSameAppDomain = Objects.equals(
+			URI.create(originalUrl).getHost(),
+			baseUri.getHost()
+		);
+
+		if (isFromTheSameAppDomain) {
+			throw new InvalidURLException("This is so silly, you cannot shorten a URL from the same domain as the app ;)");
+		}
+
+		// Try to get the shorted URL from the cache first
+		String cacheKey = "originalUrls:" + originalUrl;
+		ShortedURL cachedShortedUrl = (ShortedURL) redisTemplate.opsForValue().get(cacheKey);
+
+		if (cachedShortedUrl != null) {
+			throw new URLAlreadyExistsException("This URL already exists at " + baseUri.resolve(hashIdsService.encode(cachedShortedUrl.getId())));
+		}
+
+		// If not found in cache, check the database
+		Optional<ShortedURL> alreadyShortedUrl = shortedUrlRepository.findByOriginalUrl(originalUrl);
+
+		if (alreadyShortedUrl.isPresent()) {
+			throw new URLAlreadyExistsException("This URL already exists at " + baseUri.resolve(hashIdsService.encode(alreadyShortedUrl.get().getId())));
+		}
+
+		// Create a new shorted URL
+		ShortedURL newShortedUrl = ShortedURL.builder()
+			.originalUrl(originalUrl)
+			.build();
+
+		ShortedURL shortedUrl = shortedUrlRepository.save(newShortedUrl);
+		String obfuscatedBase62URL = hashIdsService.encode(shortedUrl.getId());
+
+		// Cache the shorted URL for 6 hours
+		redisTemplate.opsForValue().set(cacheKey, shortedUrl, 6, TimeUnit.HOURS);
+
+		return this.baseUri.resolve(obfuscatedBase62URL).toString();
+	}
+
+	public String retrieveUrl(@NotNull String shortedURL) throws ShortedURLNotFoundException {
+		Long decodedId = hashIdsService
+			.decode(shortedURL)
+			// Do not show the exact error message to the user, as it may contain sensitive information about the hashids configuration
+			.orElseThrow(ShortedURLNotFoundException::new);
+
+		String cacheKey = "shortedUrls:" + shortedURL;
+		ShortedURL cachedShortedUrl = (ShortedURL) redisTemplate.opsForValue().get(cacheKey);
+
+		if (cachedShortedUrl != null) {
+			return cachedShortedUrl.getOriginalUrl();
+		}
+
+		Optional<ShortedURL> shortedURLObject = shortedUrlRepository.findById(decodedId);
+
+		if (shortedURLObject.isEmpty()) {
+			throw new ShortedURLNotFoundException();
+		}
+
+		// Cache the shorted URL for 6 hours
+		redisTemplate.opsForValue().set(cacheKey, shortedURLObject.get(), 6, TimeUnit.HOURS);
+
+		return shortedURLObject.get().getOriginalUrl();
+	}
+}
