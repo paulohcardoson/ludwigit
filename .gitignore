@@ -37,3 +37,6 @@ build/
 
 # Environment variables
 .env.development
+
+# Nektos/Act
+.github/nektos

@@ -1,0 +1,29 @@
+name: CI/CD to DigitalOcean
+on:
+  push:
+    branches: [ main ]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Send compose files to Digital Ocean
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.DIGITAL_OCEAN_SSH_HOST }}
+          username: ${{ secrets.DIGITAL_OCEAN_SSH_USER }}
+          key: ${{ secrets.DIGITAL_OCEAN_SSH_SECRET_KEY }}
+          port: ${{ secrets.DIGITAL_OCEAN_SSH_PORT }}
+          source: "compose*.yml"
+          target: ${{ secrets.DIGITAL_OCEAN_SSH_DESTINATION }}/
+      - name: Finish deploy to Digital Ocean
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DIGITAL_OCEAN_SSH_HOST }}
+          username: ${{ secrets.DIGITAL_OCEAN_SSH_USER }}
+          key: ${{ secrets.DIGITAL_OCEAN_SSH_SECRET_KEY }}
+          port: ${{ secrets.DIGITAL_OCEAN_SSH_PORT }}
+          script: |
+            cd ${{ secrets.DIGITAL_OCEAN_SSH_DESTINATION }}
+            docker compose up -d --force-recreate --build
+            echo "Finished deploy to Digital Ocean from Github Actions. Date $(date)" >> ${{ secrets.DIGITAL_OCEAN_SSH_DESTINATION }}/ssh-deploy.log
