@@ -5,18 +5,23 @@ import com.ludwigit.app.dto.requests.CreateShortURLRequestBody;
 import com.ludwigit.app.exceptions.ShortedURLNotFoundException;
 import com.ludwigit.app.services.ShortedURLService;
 import lombok.SneakyThrows;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 
 @WebMvcTest
+@ActiveProfiles("test")
 class ShortedURLControllerTest {
 
 	ObjectMapper objectMapper = new ObjectMapper();
@@ -24,6 +29,16 @@ class ShortedURLControllerTest {
 	private MockMvc mockMvc;
 	@MockitoBean
 	private ShortedURLService shortedURLService;
+	@MockitoBean
+	private ValueOperations<String, Object> valueOperations;
+	@MockitoBean
+	private RedisTemplate<String, Object> redisTemplate;
+
+	@BeforeEach
+	void setUp() {
+		Mockito.when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+		Mockito.when(valueOperations.get(Mockito.anyString())).thenReturn(null);
+	}
 
 	@Test
 	@DisplayName("Deve criar uma URL encurtada a partir de uma URL original válida")
